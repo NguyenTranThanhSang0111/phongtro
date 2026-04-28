@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Chủ Trọ - Quản lý phòng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .status-pending { color: #ff9800; font-weight: bold; } /* Chờ duyệt */
+        .status-approved { color: #28a745; font-weight: bold; } /* Đã duyệt */
+        .status-rejected { color: #dc3545; font-weight: bold; } /* Từ chối */
+    </style>
+</head>
+<body class="bg-light">
+
+<script>
+    if (localStorage.getItem('userRole') !== 'landlord') {
+        alert("Bạn không có quyền truy cập!");
+        window.location.href = 'login.html';
+    }
+
+  function logout() {
+    // Chỉ xóa phiên làm việc, KHÔNG xóa danh sách users và rooms
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+}
+</script>
+
+<nav class="navbar navbar-dark bg-success mb-4">
+    <div class="container">
+        <span class="navbar-brand">Khu trọ Thanh Sang - Chủ Trọ</span>
+        <button onclick="logout()" class="btn btn-outline-light btn-sm">Đăng xuất</button>
+    </div>
+</nav>
+<div class="card shadow-sm mt-5">
+    <div class="card-header bg-primary text-white">
+        <h3>Quản lý khách đang thuê</h3>
+    </div>
+    <div class="card-body">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Tên phòng</th>
+                    <th>Tên khách thuê</th>
+                    <th>Giá tiền</th>
+                    <th>Hành động</th>
+                </tr>
+            </thead>
+            <tbody id="tenantTableBody">
+                </tbody>
+        </table>
+    </div>
+</div>
+<div class="container">
+    <div class="card shadow mb-4">
+        <div class="card-header bg-success text-white">Đăng tin cho thuê phòng</div>
+        <div class="card-body">
+            <form id="roomForm">
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label>Tên/Số phòng</label>
+                        <input type="text" id="roomName" class="form-control" placeholder="Ví dụ: Phòng 101" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Giá thuê (VNĐ)</label>
+                        <input type="number" id="roomPrice" class="form-control" placeholder="Ví dụ: 3000000" required>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label>Diện tích (m2)</label>
+                        <input type="number" id="roomArea" class="form-control" placeholder="Ví dụ: 25" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100">Đăng bài ngay</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-white">
+            <h3>Danh sách phòng của tôi</h3>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>Tên phòng</th>
+                        <th>Giá thuê</th>
+                        <th>Diện tích</th>
+                        <th>Trạng thái</th>
+                        <th>Thao tác</th>
+                    </tr>
+                </thead>
+                <tbody id="myRoomTable">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    // Hàm nạp danh sách phòng của RIÊNG chủ trọ này
+    function loadMyRooms() {
+        const rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        const currentUser = localStorage.getItem('currentUser');
+        const tableBody = document.getElementById('myRoomTable');
+        
+        // Lọc: Chỉ hiện phòng do người đang đăng nhập tạo ra
+        const myRooms = rooms.filter(r => r.owner === currentUser);
+        
+        tableBody.innerHTML = '';
+        myRooms.forEach(room => {
+            let statusText = "";
+            let statusClass = "";
+
+            if(room.status === "pending") { statusText = "Chờ duyệt"; statusClass = "status-pending"; }
+            else if(room.status === "approved") { statusText = "Đã đăng"; statusClass = "status-approved"; }
+            else { statusText = "Bị từ chối"; statusClass = "status-rejected"; }
+
+            tableBody.innerHTML += `
+                <tr>
+                    <td>${room.name}</td>
+                    <td>${Number(room.price).toLocaleString()}đ</td>
+                    <td>${room.area}m2</td>
+                    <td><span class="${statusClass}">${statusText}</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRoom(${room.id})">Xóa</button>
+                    </td>
+                </tr>
+            `;
+        });
+    }
+
+    // Xử lý khi nhấn nút Đăng bài
+    document.getElementById('roomForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const newRoom = {
+            id: Date.now(),
+            name: document.getElementById('roomName').value,
+            price: document.getElementById('roomPrice').value,
+            area: document.getElementById('roomArea').value,
+            owner: localStorage.getItem('currentUser'),
+            status: "pending"
+        };
+
+        let rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        rooms.push(newRoom);
+        localStorage.setItem('roomList', JSON.stringify(rooms));
+
+        alert("Đăng bài thành công! Vui lòng đợi Admin duyệt.");
+        this.reset();
+        loadMyRooms(); // Nạp lại bảng tại chỗ
+    });
+
+    // Hàm xóa phòng
+    function deleteRoom(id) {
+        if(confirm("Bạn có muốn xóa bài đăng này?")) {
+            let rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+            rooms = rooms.filter(r => r.id !== id);
+            localStorage.setItem('roomList', JSON.stringify(rooms));
+            loadMyRooms();
+        }
+    }
+
+    // Chạy khi trang vừa mở
+    window.onload = loadMyRooms;
+    function loadTenants() {
+    const rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+    const currentUser = localStorage.getItem('currentUser');
+    const tenantTable = document.getElementById('tenantTableBody');
+
+    // Lọc những phòng của chủ này và ĐÃ CÓ người thuê (status === 'rented')
+    const rentedRooms = rooms.filter(r => r.owner === currentUser && r.status === "rented");
+
+    tenantTable.innerHTML = '';
+
+    if (rentedRooms.length === 0) {
+        tenantTable.innerHTML = '<tr><td colspan="4" class="text-center text-muted">Chưa có khách nào thuê phòng.</td></tr>';
+        return;
+    }
+
+    rentedRooms.forEach(room => {
+        tenantTable.innerHTML += `
+            <tr>
+                <td><strong>${room.name}</strong></td>
+                <td><span class="badge bg-info text-dark">${room.tenant}</span></td>
+                <td>${Number(room.price).toLocaleString()}đ</td>
+                <td>
+                    <button class="btn btn-sm btn-warning" onclick="checkoutRoom(${room.id})">Trả phòng</button>
+                </td>
+            </tr>
+        `;
+    });
+}
+
+// Hàm xử lý trả phòng (để phòng trống lại)
+function checkoutRoom(id) {
+    if(confirm("Xác nhận khách trả phòng? Phòng sẽ được đưa về trạng thái Trống.")) {
+        let rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        const index = rooms.findIndex(r => r.id === id);
+        
+        if (index !== -1) {
+            rooms[index].status = "approved"; // Đưa về trạng thái đã duyệt (trống) để người khác thuê tiếp
+            delete rooms[index].tenant; // Xóa tên khách thuê cũ
+            localStorage.setItem('roomList', JSON.stringify(rooms));
+            
+            loadMyRooms(); // Cập nhật lại bảng phòng
+            loadTenants(); // Cập nhật lại bảng khách
+        }
+    }
+}
+
+// Cập nhật window.onload để chạy cả 2 bảng
+const oldOnload = window.onload;
+window.onload = function() {
+    if (oldOnload) oldOnload();
+    loadMyRooms();
+    loadTenants();
+};
+</script>
+</body>
+</html>

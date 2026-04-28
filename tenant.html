@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>Khách Thuê - Tìm Phòng</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f0f2f5; }
+        .room-card { transition: transform 0.2s; border: none; border-radius: 15px; }
+        .room-card:hover { transform: translateY(-5px); }
+        .price-tag { color: #e91e63; font-size: 1.25rem; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow">
+    <div class="container">
+        <a class="navbar-brand" href="#">🏠 PhongTroDB - Thuê Phòng</a>
+        <button onclick="logout()" class="btn btn-outline-light btn-sm">Đăng xuất</button>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <h2 class="mb-4">Phòng trọ dành cho bạn</h2>
+    <div class="row" id="roomDisplay">
+        </div>
+</div>
+
+<script>
+    function loadAvailableRooms() {
+        const rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        const roomDisplay = document.getElementById('roomDisplay');
+        
+        // Lọc: Chỉ lấy những phòng đã được Admin DUYỆT (approved)
+        const availableRooms = rooms.filter(r => r.status === "approved");
+
+        if (availableRooms.length === 0) {
+            roomDisplay.innerHTML = `
+                <div class="col-12 text-center mt-5">
+                    <p class="text-muted">Hiện tại chưa có phòng nào trống hoặc đã được duyệt.</p>
+                </div>`;
+            return;
+        }
+
+        roomDisplay.innerHTML = availableRooms.map(room => `
+            <div class="col-md-4 mb-4">
+                <div class="card h-100 room-card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title text-primary">${room.name}</h5>
+                        <p class="card-text mb-1"><strong>Diện tích:</strong> ${room.area} m²</p>
+                        <p class="card-text mb-1"><strong>Chủ trọ:</strong> ${room.owner}</p>
+                        <p class="price-tag mb-3">${Number(room.price).toLocaleString()} VNĐ/tháng</p>
+                        <button class="btn btn-success w-100" onclick="rentRoom(${room.id})">Thuê ngay</button>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function rentRoom(id) {
+        if (confirm("Bạn có chắc chắn muốn thuê phòng này không?")) {
+            let rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+            const index = rooms.findIndex(r => r.id === id);
+            
+            if (index !== -1) {
+                // Đổi trạng thái sang "rented" (Đã thuê)
+                rooms[index].status = "rented";
+                rooms[index].tenant = localStorage.getItem('currentUser'); // Lưu tên người thuê
+                localStorage.setItem('roomList', JSON.stringify(rooms));
+                
+                alert("Chúc mừng! Bạn đã thuê phòng thành công.");
+                loadAvailableRooms(); // Cập nhật lại danh sách
+            }
+        }
+    }
+
+  function logout() {
+    // Chỉ xóa phiên làm việc, KHÔNG xóa danh sách users và rooms
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+}
+
+    window.onload = loadAvailableRooms;
+</script>
+</body>
+</html>

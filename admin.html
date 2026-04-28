@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hệ Thống Quản Trị - Admin</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; }
+        .card { border: none; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+<script>
+    const role = localStorage.getItem('userRole');
+    if (role !== 'admin') {
+        alert("Chỉ Admin mới được vào đây!");
+        window.location.href = 'login.html';
+    }
+</script>
+
+<nav class="navbar navbar-dark bg-dark shadow-sm">
+    <div class="container">
+        <span class="navbar-brand">🛡️ Quản trị viên: Nguyễn Trần Thanh Sang</span>
+        <button onclick="logout()" class="btn btn-outline-danger btn-sm">Đăng xuất</button>
+    </div>
+</nav>
+
+<div class="container mt-5">
+    <div class="row mb-4">
+        <div class="col">
+            <h2>Hệ Thống Quản Trị</h2>
+            <p class="text-muted">Tại đây bạn có thể xem danh sách khách hàng vừa đăng ký trong hệ thống.</p>
+        </div>
+    </div>
+
+    <div class="card shadow">
+        <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Danh sách người dùng hệ thống</h5>
+            <span class="badge bg-primary" id="userCount">0 thành viên</span>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên người dùng</th>
+                        <th>Vai trò</th>
+                        <th>Mật khẩu</th>
+                        <th>Trạng thái</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<div class="container mt-5 mb-5">
+    <div class="card shadow">
+        <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">Duyệt bài đăng phòng trọ</h5>
+            <span class="badge bg-dark" id="pendingCount">Đang chờ: 0</span>
+        </div>
+        <div class="card-body">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Tên phòng</th>
+                        <th>Chủ trọ</th>
+                        <th>Giá (VNĐ)</th>
+                        <th>Diện tích</th>
+                        <th>Hành động</th>
+                    </tr>
+                </thead>
+                <tbody id="roomTableBody">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+<script>
+    // 1. Hàm hiển thị danh sách phòng chờ duyệt
+    function loadPendingRooms() {
+        const rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        const tableBody = document.getElementById('roomTableBody');
+        const pendingCount = document.getElementById('pendingCount');
+        
+        const pendingRooms = rooms.filter(r => r.status === "pending");
+        pendingCount.innerText = `Đang chờ: ${pendingRooms.length}`;
+
+        tableBody.innerHTML = '';
+
+        pendingRooms.forEach((room) => {
+            const row = `
+                <tr>
+                    <td><strong>${room.name}</strong></td>
+                    <td>${room.owner}</td>
+                    <td class="text-danger fw-bold">${Number(room.price).toLocaleString()}</td>
+                    <td>${room.area} m2</td>
+                    <td>
+                        <button class="btn btn-sm btn-success" onclick="updateRoomStatus(${room.id}, 'approved')">Duyệt</button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="updateRoomStatus(${room.id}, 'rejected')">Từ chối</button>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    // 2. Hàm cập nhật trạng thái phòng (Duyệt/Từ chối)
+    function updateRoomStatus(roomId, newStatus) {
+        let rooms = JSON.parse(localStorage.getItem('roomList')) || [];
+        const roomIndex = rooms.findIndex(r => r.id === roomId);
+        
+        if (roomIndex !== -1) {
+            rooms[roomIndex].status = newStatus;
+            localStorage.setItem('roomList', JSON.stringify(rooms));
+            
+            alert(newStatus === 'approved' ? "Đã duyệt bài đăng!" : "Đã từ chối bài đăng.");
+            loadPendingRooms(); 
+        }
+    }
+
+    // 3. Hàm hiển thị danh sách người dùng
+    function loadUsers() {
+        const tableBody = document.getElementById('userTableBody');
+        const userCountSpan = document.getElementById('userCount');
+        let users = JSON.parse(localStorage.getItem('userList')) || [];
+        
+        userCountSpan.innerText = `${users.length} thành viên`;
+        tableBody.innerHTML = '';
+
+        users.forEach((user, index) => {
+            const row = `
+                <tr>
+                    <td><strong>${user.username}</strong></td>
+                    <td><span class="badge ${user.role === 'landlord' ? 'bg-success' : 'bg-info'}">${user.role}</span></td>
+                    <td><code>${user.password}</code></td>
+                    <td><span class="text-success">● Đang hoạt động</span></td>
+                    <td>
+                        <button class="btn btn-sm btn-danger" onclick="deleteUser(${index})">Xóa</button>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    }
+
+    // 4. Hàm xóa tài khoản
+    function deleteUser(index) {
+        if (confirm("Xóa người dùng này?")) {
+            let users = JSON.parse(localStorage.getItem('userList')) || [];
+            users.splice(index, 1);
+            localStorage.setItem('userList', JSON.stringify(users));
+            loadUsers();
+        }
+    }
+
+    // 5. Hàm đăng xuất
+   function logout() {
+    // Chỉ xóa phiên làm việc, KHÔNG xóa danh sách users và rooms
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+}
+
+    // QUAN TRỌNG: Gọi cả 2 hàm khi trang load xong
+    window.onload = function() {
+       // Đảm bảo cả 2 hàm đều chạy khi trang load
+    if (typeof loadUsers === "function") loadUsers();
+    if (typeof loadPendingRooms === "function") loadPendingRooms();
+    
+    // Thêm dòng này để kiểm tra dữ liệu có thực sự tồn tại không
+    console.log("Danh sách phòng hiện có:", localStorage.getItem('roomList'));
+    };
+</script>
+
+
+</body>
+</html>

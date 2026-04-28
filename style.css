@@ -1,0 +1,8 @@
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.card:hover {
+    transform: scale(1.02); /* Khi di chuột vào phòng sẽ hơi to lên chút cho đẹp */
+    transition: 0.3s;
+}
